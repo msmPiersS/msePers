@@ -35,11 +35,11 @@
   str(raw)
 
   #create dicts
-  pageLookup = raw[, list(tot = .N), by=list(pagePath)][order(-tot)]
+  pageLookup = raw[, list(totHits = .N), by=list(pagePath)][order(-totHits)]
   pageLookup[, pId:= seq(1:nrow(pageLookup))]
   setkey(pageLookup, pagePath)
   
-  uidLookup = raw[, list(tot = .N), by=list(uid)][order(-tot)]
+  uidLookup = raw[, list(totPages = .N), by=list(uid)][order(-totPages)]
   uidLookup[, uId:= seq(1:nrow(uidLookup))]
   setkey(uidLookup, uid)
   
@@ -51,15 +51,18 @@
   vidLookup[, vId:= seq(1:nrow(vidLookup))]
   setkey(vidLookup, vid)
   
-  uidLookup[tot>3,] 
+  uidLookup[totPages>3,] 
   
   #create clean links
   setkey(raw,pagePath)
   clean = raw[pageLookup][, list(uid, pId)]
   setkey(clean, uid)
   clean = clean[uidLookup][, list(uId,pId)]
-  setkey(clean, uId)
+  setkey(clean, uId, pId)
 
+  cleanDedup = clean[, list(hits = .N), by= list(uId, pId)]
+  setkey(cleanDedup, pId, uId)
+  
 ## End Load data and explore
 #######################################################################################
   
@@ -69,7 +72,39 @@
   
 ###########################################################  
 ## End Look into collaborative filtering
-#http://blog.yhathq.com/posts/recommender-system-in-r.html    
+
+  #function to pull k nearest sessions
+  
+  getKNearest <- function(data, pages, k) {
+    # function to pull the k closest sessions to the input
+    # data: data.table containing the clean data- two columns, 
+    # user(uId) and page(pId)- should be keyed by pId then uId
+    # pages: list of pages (pId) defining input session
+    # k: number of nearest neighbours to pul
+    
+    # pages = c(1,3)
+    # data = copy(cleanDedup)
+    # k = 5
+    
+    # check for key and keyby if not
+    if (key(data)[1] == "pId" && key(data)[2] == "uId") {
+      setkeyv(data, c("pId", "uId"))
+    }
+    
+    # characterise sessions by number of pages in comman
+    targetList = data[pId %in% pages, list(samePages = .N, totalHits = sum(hits), overlap = .N/length(pages)), by = list(uId)][order(-samePages, -totalHits)]
+    return(targetList[1:k, list(uId, overlap)])
+    
+  }
+  
+  inPages = c(1,2,3,4,5)
+  getKNearest(cleanDedup, inPages, 5)
+  
+  
+  
+  
+  
+  #http://blog.yhathq.com/posts/recommender-system-in-r.html    
     
 
   common_sessions_by_id <- function(pid1, pid2) {
