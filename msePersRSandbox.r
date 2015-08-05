@@ -16,7 +16,8 @@
   getwd()
 
   #files
-  dataFile = 'results-20150729-175027.csv'
+  #dataFile = 'results-20150729-175027.csv'
+  dataFile = 'AnalyticsData_20150704.csv'
   exclusionList = 'pageExclusions.csv'
   
   
@@ -192,15 +193,27 @@
   
 ###########################################################  
 ## Look into a link graph
+
+  #create full dicts
+  pageLookupAll = raw[, list(totHits = .N), by=list(pagePath)][order(-totHits)]
+  pageLookupAll[, pId:= seq(1:nrow(pageLookupAll))]
+  setkey(pageLookupAll, pagePath)
+  pageLookupAll = pExclude[pageLookupAll]
+  pageLookupAll[is.na(exclude), exclude:=0]
+    
+  uidLookupAll = raw[, list(totPages = .N), by=list(uid)][order(-totPages)]
+  uidLookupAll[, uId:= seq(1:nrow(uidLookupAll))]
+  setkey(uidLookupAll, uid)
+  
   
   #create clean links
   setkey(raw,pagePath)
-  setkey(pageLookup, pagePath)
-  links = raw[pageLookup][, list(uid, pId, rank)]
+  setkey(pageLookupAll, pagePath)
+  links = raw[pageLookupAll][, list(uid, pId, rank)]
   setkey(links, uid)
-  links = links[uidLookup][, list(uId, pId, rank)]
+  links = links[uidLookupAll][, list(uId, pId, rank)]
   setkey(links, uId, rank)
-  setkey(pageLookup, pId)
+  setkey(pageLookupAll, pId)
   
   links2 = copy(links)
   links2[, rank:=rank+1]
@@ -217,9 +230,18 @@
   edges = linksf[linksf2, nomatch=0][page1<page2, list(page1, page2, weight = tot + i.tot)]
   nodes = data.table(pId = sort(unique(c(edges[, page1], edges[, page2]))))
   setkey(nodes, pId)
-  nodes = pageLookup[nodes]
+  nodes = pageLookupAll[nodes]
   setcolorder(nodes,c("pId", "pagePath", "totHits", "exclude"))
   #edges[weight>1, ]
+  
+  minHits = 1
+  nodes = nodes[totHits>=minHits, ]
+  edges = edges[page1 %in% nodes[, pId] & page2 %in% nodes[, pId], ]
+  
+  saveFlag = 1
+  if (saveFlag == 1) {
+    save(nodes, edges, file = paste(dataDir,"nodesEdgesExForum20150704.rdata", sep=""))
+  }
   
   # create graph, generate layout and pull positions
   g = graph_from_data_frame(edges, directed = FALSE, vertices = nodes)
@@ -233,9 +255,9 @@
   nodesDT[, Yorg:=tmpLayout[, 2]]
   
   capX = 100
-  sum(abs(nodesDT[, Xorg])>capX)
+  sum(abs(nodesDT[, Xorg])>capX)/nrow(nodes)
   capY = 100
-  sum(abs(nodesDT[, Yorg])>capY)
+  sum(abs(nodesDT[, Yorg])>capY)/nrow(nodes)
   
   nodesDT[, X:=Xorg]
   nodesDT[abs(Xorg)>capX, X:= capX*sign(Xorg)]
@@ -244,7 +266,7 @@
   
   #clustering
   stds = apply(nodesDT[, list(X, Y)], 2, sd)
-  ds <- dbscan(nodesDT[, list(X, Y)], mean(stds)/5, MinPts = floor(nrow(nodesDT)/200))
+  ds <- dbscan(nodesDT[, list(X, Y)], mean(stds), MinPts = floor(nrow(nodesDT)/500))
   #ds <- dbscan(nodesDT[, list(Xorg, Yorg)], mean(stds)/10, MinPts = floor(nrow(nodesDT)/20))
   #dbscan(nodesDT[, list(X, Y)], eps=5, MinPts = 5)
          
@@ -331,7 +353,9 @@
   setkey(tmpcol, typeId)
   setkey(nodesExport, typeId)  
   nodesExport = nodesExport[tmpcol]
+  setkey(nodesExport, id)
   # round everything
+  #nodesExport[, size := round(log(1+size)*1000)/1000]
   nodesExport[, size := round(size*1000)/1000]
   nodesExport[, x := round(x*1000)/1000]
   nodesExport[, y := round(y*1000)/1000]
@@ -388,7 +412,7 @@
   "minNodeSize": 1
   },
   "drawingProperties": {
-  "labelThreshold": 10,
+  "labelThreshold": 20,
   "hoverFontStyle": "bold",
   "defaultEdgeType": "curve",
   "defaultLabelColor": "#000",
@@ -401,7 +425,7 @@
   },
   "mouseProperties": {
   "minRatio": 0.75,
-  "maxRatio": 20
+  "maxRatio": 100
   }
   }
   }
@@ -411,7 +435,7 @@
   
   #export config json
   visTitle = "Clickstream visualisation of MoneySavingsExpert.com"
-  visMore = "Network visualisation based on direct page transitions at MSE on xx/xxx/2015"
+  visMore = "Network visualisation based on direct page transitions at MSE (excluding forum) on 04/Jul/2015"
   visIntro = "Layout based on Force Directed Graph algorithm- attraction between pages proportional to volume of transitions"
   edgeLabelText = "Link between pages"
   nodeLabelText = "Pages"       
@@ -430,6 +454,11 @@
   
   # set web server running - start local websever
   # python -m SimpleHTTPServer 8000
+  #system(paste("cd ", visDir, sep=""))
+  #system("python -m SimpleHTTPServer 8000")
+
+  #note you then need to top from command line and find the python pid
+  # then sudo kill pid
   
   #then access at http://0.0.0.0:8000/
   
