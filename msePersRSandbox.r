@@ -428,6 +428,10 @@
   cat(configExport)
   sink()
   
+  # set web server running - start local websever
+  # python -m SimpleHTTPServer 8000
+  
+  #then access at http://0.0.0.0:8000/
   
 ## End Look into a link graph
 ###########################################################  
