@@ -47,6 +47,18 @@
   setkey(pExclude, pagePath)
   str(raw)
 
+  #create full dicts
+  pageLookupAll = raw[, list(totHits = .N), by=list(pagePath)][order(-totHits)]
+  pageLookupAll[, pId:= seq(1:nrow(pageLookupAll))]
+  setkey(pageLookupAll, pagePath)
+  pageLookupAll = pExclude[pageLookupAll]
+  pageLookupAll[is.na(exclude), exclude:=0]
+  
+  
+  uidLookupAll = raw[, list(totPages = .N), by=list(uid)][order(-totPages)]
+  uidLookupAll[, uId:= seq(1:nrow(uidLookupAll))]
+  setkey(uidLookupAll, uid)
+  
   #simulate real sitution- split raw data into training and set to make predictions on
   # first pull sessions with start time- use 75% for training
   trainPct = 0.75
@@ -174,7 +186,7 @@
   }
   
   
-  
+  #explore
   
   inPages = c(1,2,3,4,5)
   getKNearest(cleanDedup, inPages, 5)
@@ -184,6 +196,44 @@
   
   pagesViewed = pageLookup[pId %in% inPages]
   pageRecs = pageLookup[pId %in% recIds[, pId]]
+  
+  
+  #test on larger set
+  testClean = test[, list(uid, rank, pagePath)]
+  setkey(testClean, pagePath)
+  setkey(pageLookupAll, pagePath)
+  testClean = pageLookupAll[testClean][, list(uid, rank, pId)]
+  setkey(testClean, uid, rank)
+  
+  testIds = testClean[, list(maxRank = max(rank)), by = uid]
+  testIds = testIds[maxRank>2, ]
+  
+  tgtId = 1
+  tgtPages = testClean[uid == testIds[tgtId, uid], pId]
+  sessionLength = length(tgtPages)
+  recLength = 3
+  
+  for (i in 1:sessionLength) {
+    #i=1
+    inPages = tgtPages[1:i]
+    inPageNames = pageLookup[pId %in% inPages, pagePath]
+    recs = getNRecs(cleanDedup, inPages, pageLookup, recLength, 10)
+    cat(paste("Pages you have visited: \n", sep=""))
+    cat(paste(inPageNames, sep=" ", collapse = "\n"))
+    cat("\n")
+    cat("\n")
+    cat(paste("Pages you might like: \n", sep=""))
+    cat(paste(recs[, pagePath], sep=" ", collapse = "\n"))
+    cat("\n")
+    cat("\n")
+    cat(paste("Most Popular Pages: \n", sep=""))
+    cat(paste(pageLookup[!(pId %in% unique(c(inPages, recs[, pId]))), ] [1:recLength, pagePath], sep=" ", collapse = "\n"))
+    cat("\n")
+    cat("\n")
+    cat("\n")
+    Sys.sleep(1)
+  }
+  
   
 ## End Look into collaborative filtering
 ###########################################################  
@@ -195,15 +245,15 @@
 ## Look into a link graph
 
   #create full dicts
-  pageLookupAll = raw[, list(totHits = .N), by=list(pagePath)][order(-totHits)]
-  pageLookupAll[, pId:= seq(1:nrow(pageLookupAll))]
-  setkey(pageLookupAll, pagePath)
-  pageLookupAll = pExclude[pageLookupAll]
-  pageLookupAll[is.na(exclude), exclude:=0]
+  #pageLookupAll = raw[, list(totHits = .N), by=list(pagePath)][order(-totHits)]
+  #pageLookupAll[, pId:= seq(1:nrow(pageLookupAll))]
+  #setkey(pageLookupAll, pagePath)
+  #pageLookupAll = pExclude[pageLookupAll]
+  #pageLookupAll[is.na(exclude), exclude:=0]
     
-  uidLookupAll = raw[, list(totPages = .N), by=list(uid)][order(-totPages)]
-  uidLookupAll[, uId:= seq(1:nrow(uidLookupAll))]
-  setkey(uidLookupAll, uid)
+  #uidLookupAll = raw[, list(totPages = .N), by=list(uid)][order(-totPages)]
+  #uidLookupAll[, uId:= seq(1:nrow(uidLookupAll))]
+  #setkey(uidLookupAll, uid)
   
   
   #create clean links
@@ -231,10 +281,15 @@
   nodes = data.table(pId = sort(unique(c(edges[, page1], edges[, page2]))))
   setkey(nodes, pId)
   nodes = pageLookupAll[nodes]
-  setcolorder(nodes,c("pId", "pagePath", "totHits", "exclude"))
+  nodes[, rank:= seq(1,nrow(nodes),1)]
+  setcolorder(nodes,c("pId", "pagePath", "totHits", "rank", "exclude"))
   #edges[weight>1, ]
+
+  #hit distribution
+  ggplot() + geom_point(data=nodes, aes(x=rank, y=floor(log(1+totHits))))
+  hitFreq = nodes[, .N, by = list(totHits)]
   
-  minHits = 1
+  minHits = 200
   nodes = nodes[totHits>=minHits, ]
   edges = edges[page1 %in% nodes[, pId] & page2 %in% nodes[, pId], ]
   
@@ -269,9 +324,16 @@
   ds <- dbscan(nodesDT[, list(X, Y)], mean(stds), MinPts = floor(nrow(nodesDT)/500))
   #ds <- dbscan(nodesDT[, list(Xorg, Yorg)], mean(stds)/10, MinPts = floor(nrow(nodesDT)/20))
   #dbscan(nodesDT[, list(X, Y)], eps=5, MinPts = 5)
-         
-  nodesDT[, typeId:=ds$cluster]
   
+  useClusters = 0
+  if (useClusters != 1) {
+    nodesDT[, typeId:=floor(log(1+max(totHits))) - floor(log(1+totHits))]
+    
+  } else {
+    nodesDT[, typeId:=ds$cluster]
+    
+  }
+         
   #minX = min(tmp[, X])
   #stdDevX = sd(tmp[, X])
   #maxX = max(tmp[, X])
@@ -392,12 +454,12 @@
   },
   "legend": {
   "edgeLabel": "edgeLabelText",
-  "colorLabel": "Identified Cluster",
+  "colorLabel": "Page Volume",
   "nodeLabel": "nodeLabelText"
   },
   "features": {
   "search": true,
-  "groupSelectorAttribute": false,
+  "groupSelectorAttribute": true,
   "hoverBehavior": "default"
   },
   "informationPanel": {
@@ -406,9 +468,9 @@
   },
   "sigma": {
   "graphProperties": {
-  "minEdgeSize": 1,
+  "minEdgeSize": 0.5,
   "maxNodeSize": 20,
-  "maxEdgeSize": 10,
+  "maxEdgeSize": 3,
   "minNodeSize": 1
   },
   "drawingProperties": {

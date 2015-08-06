@@ -10,17 +10,17 @@
   },
   "text": {
   "title": "Clickstream visualisation of MoneySavingsExpert.com",
-  "more": "Network visualisation based on direct page transitions at MSE on xx/xxx/2015",
+  "more": "Network visualisation based on direct page transitions at MSE (excluding forum) on 04/Jul/2015",
   "intro": "Layout based on Force Directed Graph algorithm- attraction between pages proportional to volume of transitions"
   },
   "legend": {
   "edgeLabel": "Link between pages",
-  "colorLabel": "Identified Cluster",
+  "colorLabel": "Page Volume",
   "nodeLabel": "Pages"
   },
   "features": {
   "search": true,
-  "groupSelectorAttribute": false,
+  "groupSelectorAttribute": true,
   "hoverBehavior": "default"
   },
   "informationPanel": {
@@ -29,13 +29,13 @@
   },
   "sigma": {
   "graphProperties": {
-  "minEdgeSize": 1,
+  "minEdgeSize": 0.5,
   "maxNodeSize": 20,
-  "maxEdgeSize": 10,
+  "maxEdgeSize": 3,
   "minNodeSize": 1
   },
   "drawingProperties": {
-  "labelThreshold": 10,
+  "labelThreshold": 20,
   "hoverFontStyle": "bold",
   "defaultEdgeType": "curve",
   "defaultLabelColor": "#000",
@@ -48,7 +48,7 @@
   },
   "mouseProperties": {
   "minRatio": 0.75,
-  "maxRatio": 20
+  "maxRatio": 100
   }
   }
   }
