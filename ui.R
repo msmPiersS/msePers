@@ -60,34 +60,36 @@ shinyUI(
     br(),
   
     fluidPage(  
-        h5(' Enter Parameters '),
         fluidRow(
-          column(4,
-                 sliderInput("nTypes", "Enter number of different agent types:", 
-                      min=2, max=10, value=2)
+          column(8,
+                 h5(' Actual Page Being Visited '),
+                 htmlOutput("currentPage"),
+                 htmlOutput("pageView")
           ),
           column(4,
-                 sliderInput("emptyP", "Enter proportion of empty houses:", 
-                             min=0.1, max=0.5, value=0.2, step= 0.1)
-          ),
-          column(4,
-                sliderInput("simThresh", "Enter similarity threshold:", 
-                      min=0.1, max=0.9, value=0.5, step= 0.1)
-          )
-          #helpText(htmlOutput("lbHelp")), 
+                 fluidRow(
+                   column(6,
+                          h5(' Select Session to use '),
+                          sliderInput("tgtId", "Session Id:", 1, min = 1, max = 200, step = 1, ticks = FALSE)),
+                   column(6,
+                          h5(' Cycle through session '),
+                          uiOutput("seqInput"))
+                 ),
+                 #numericInput("seqId", "Sequence Id:", 1, min = 1, max = 10),
+                 h5(' Number of reommended pages to display '),
+                 sliderInput("nRec", "Number of recs:", 3, min = 1, max = 10, ticks = FALSE),
+                 br(),
+                 h5(' Pages you might like '),
+                 htmlOutput("recPages"),
+                 br(),
+                 h5(' Most popular pages '),
+                 htmlOutput("topPages"),
+                 br(),
+                 h5(' Pages you have visited '),
+                 htmlOutput("currentPages")
+          ) 
         ),
         br(),
-        hr(),
-        h5(' Actual page visited '),
-        sliderInput("nIters", "Enter number of epochs to run:", 
-                    min=10, max=50, value=20, step= 2),
-        actionButton("runSim", "Run Agent Based Model"),
-        helpText("Note - this may take a minute or so to run"),
-        fluidRow(
-          column(10,
-                 htmlOutput("inc")
-          )
-        ),
         hr()
         #helpText(htmlOutput("timeHelp")),
     )

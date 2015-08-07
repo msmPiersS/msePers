@@ -37,15 +37,22 @@
 ## setup
 
   library(data.table)
-  library(ggplot2)
-  library(RColorBrewer)
-  library(shiny)
+  #library(ggplot2)
+  #library(RColorBrewer)
+  #library(shiny)
 
   #setwd("C:/Piers/git/r_abm")
   options(shiny.trace=FALSE) # set to True to debug
+  #options(shiny.error=browser) # set error to browser
   options(shiny.maxRequestSize=100*1024^2) # set max input file size to 100MB
 
-  #load functions
+  #load data
+  load('msePersData.rdata')
+  
+  #sort sessions by length
+  excludeIds = c(2,4,5,8,10,13)
+  testIds = testIds[!excludeIds, ]
+  
   #source("genROC.r")
   #source("genMSE.r")  
 
@@ -131,7 +138,21 @@
       
     }
   
-  
+    # funciton to pull url and display in iframe
+    getPage<-function(tgt) {
+      #return(tags$iframe(src = tgt
+      #                   , style="width:100%;",  frameborder="0"
+      #                   ,id="iframe"
+      #                   , height = "500px"))
+      return(tags$iframe(src = tgt
+                         , width = "1024px"
+                         , frameborder="0"
+                         , id="iframe"
+                         , height = "700px"
+                         , style="-webkit-transform:scale(0.8);-moz-transform-scale(0.8);"))
+    }
+    
+    
 
 ## end initiate functions
 ###############################################################################
@@ -145,122 +166,70 @@ shinyServer(function(input, output, session) {
  
   #do everything in an observer
   obs = observe({
+
       
-    #render page in iframe function
-#     getPage<-function() {
-#       return(tags$iframe(src = "http://www.bbc.co.uk"
-#                          , style="width:100%;",  frameborder="0"
-#                          ,id="iframe"
-#                          , height = "500px"))
-#     }
-#     
-    getPage<-function(tgt) {
-      return(tags$iframe(src = tgt
-                         , style="width:100%;",  frameborder="0"
-                         ,id="iframe"
-                         , height = "500px"))
-    }
+        
+      
+      #get target session from input
+      tgtIdClean <- reactive({
+        if (is.null(input$tgtId))
+          1
+        else
+          input$tgtId
+      })
+      
+
+        
+      #get target sequence id in session from input
+      seqIdClean <- reactive({
+        if (is.null(input$seqId))
+          1
+        else
+          input$seqId
+      })
+      
+
+      
+      tgtPages = testClean[uid == testIds[tgtIdClean(), uid], pId]
+      sessionLength = length(tgtPages)
+      
+      isolate ({
+      output$seqInput <- renderUI({
+        sliderInput("seqId", "Sequence Id:", seqIdClean(), min = 1, max = sessionLength, step=1, ticks = FALSE, 
+                    animate = animationOptions(loop = FALSE, interval = 500))
+      })
+      
+      }) # end isolate  
+      
+      
+      #get target number of recommendations from inpu
+      nRecClean <- reactive({
+        if (is.null(input$nRec))
+          1
+        else
+          input$nRec
+      }) 
+      
+
     
-    #generate page
-    tgtUrl = 'http://www.moneysavingexpert.com/credit-cards/'
-    
-    output$inc<-renderUI({
+    #load pages and recommendations
+    i=seqIdClean()
+    tgtUrl = paste("http://",pageLookup[pId %in% tgtPages[i], pagePath], sep="")
+    output$currentPage<-renderUI({tgtUrl})
+    output$pageView<-renderUI({
       x <- tgtUrl 
       getPage(tgtUrl)
     })
     
-    #setup inputs
-    nTypesIn = reactive({
-            if (is.null(input$nTypes)) {
-              nTypes = 2
-            } else {
-              nTypes = input$nTypes
-            }
-            return(nTypes)
-          })
+    inPages = tgtPages[1:i]
+    inPageNames = pageLookup[pId %in% inPages, pagePath]
+    recs = getNRecs(cleanDedup, inPages, pageLookup, nRecClean(), 10)
     
-    emptyPIn = reactive({
-      if (is.null(input$emptyP)) {
-        emptyP = 0.2
-      } else {
-        emptyP = input$emptyP
-      }
-      return(emptyP)
-    })
-    
-    simThreshIn = reactive({
-      if (is.null(input$simThresh)) {
-        simThresh = 0.5
-      } else {
-        simThresh = input$simThresh
-      }
-      return(simThresh)
-    })
-
-    
-    nItersIn = reactive({
-      if (is.null(input$nIters)) {
-        nIters = 20
-      } else {
-        nIters = input$nIters
-      }
-      return(nIters)
-    })    
-    
-    
-    set.seed(1234)
-    
-    data <- reactiveValues()
-    plots <- reactiveValues()
-    #data=list()
-    #plots = list()
+    output$recPages<-renderUI({ paste(recs[, pagePath], sep=" ", collapse = "\n") })
+    output$topPages<-renderUI({ paste(pageLookup[!(pId %in% unique(c(inPages, recs[, pId]))), ] [1:nRecClean(), pagePath], sep=" ", collapse = "\n") })
+    output$currentPages<-renderUI({ paste(inPageNames, sep=" ", collapse = "\n") })
     
       
-    # initiate shelling
-    #data$gridInit = initiateShelling(dimensions = c(30, 30), n_types = nTypesIn(), perc_empty = emptyPIn())
-    #data$gridInit = initiateShelling(dimensions = c(30, 30), n_types = 2, perc_empty = 0.2)
-    #data$gridInit2 = data$gridInit
-    # plot shelling
-    #plots$gridInit = plotShelling(data$gridInit, title = "Model after 0 epochs")
-    
-    output$startPlot = renderPlot({
-      print(plots$gridInit)
-    })
-      
-# 
-#     if (input$runSim==0) {
-#       return
-#     } else {
-#       isolate({
-#         withProgress(message = 'Calculating iterations', 
-#                      detail = 'This may take a while...', value = 0, {
-#           ## iterate n/2 times
-#           data$gridM <- iterate(shelling = data$gridInit, n = nItersIn()/2, similiarity_threshold = simThreshIn())
-#           ## plot the result after 10 iterations
-#           plots$gridM <- plotShelling(shelling = data$gridM, title = paste("Model after ",nItersIn()/2," epochs", sep=""))
-#         
-#           output$midPlot = renderPlot({ 
-#             print(plots$gridM)
-#           })
-#           
-#           incProgress(1/2)
-#           
-#           ## iterate another n/2 times
-#           data$gridF <- iterate(data$gridM, n = nItersIn()/2, similiarity_threshold = simThreshIn())
-#           ## plot again after 20 iterations total
-#           plots$gridF <- plotShelling(shelling = data$gridF, title = paste("Model after ",nItersIn()," epochs", sep=""))
-#           
-#           incProgress(19/20)
-#           
-#           output$endPlot = renderPlot({
-#             print(plots$gridF)
-#           })
-#         }) #end progress
-#         
-#       }) #end isolate
-#       
-#     } #end action button
-    
   }) #end observe
 }) #end
 

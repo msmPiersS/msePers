@@ -208,6 +208,10 @@
   testIds = testClean[, list(maxRank = max(rank)), by = uid]
   testIds = testIds[maxRank>2, ]
   
+  # export relevant files for use in shiny app
+  save(testIds, testClean, pageLookup, cleanDedup , file = paste(dataDir, "msePersData.rdata", sep=""))
+  
+  
   tgtId = 1
   tgtPages = testClean[uid == testIds[tgtId, uid], pId]
   sessionLength = length(tgtPages)
