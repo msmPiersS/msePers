@@ -47,7 +47,7 @@ shinyUI(
         '<div id="stats_header">
         Simple link personalisation model for MSE based on collaborative filtering of sessions
         <a href="http://www.moneysavingsexpert.com" target="_blank">
-        <img id="stats_logo" align="right" alt="SNAP Logo" src="dataMsmLogoF_white_small.png" />
+        <img id="stats_logo" align="right" alt="SNAP Logo" src="http://www.googledrive.com/host/0B8-urh68sOqfc0xieXVnNDBTdDQ" />
         </a>
         </div>'
       )

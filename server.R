@@ -17,7 +17,7 @@
 ##  (uses simple process- categorise sesssion by number of overlap pages and pick top k
 ##  use overall activity for tie breaking)
 ##
-##  Create a page recommendatio function - 
+##  Create a page recommendation function - 
 ##  given a set of input pages call nearest neighbour function to find closest k sessions
 ##  then pull pages from those session, picking top n based on overlap and then popularity
 ##  
@@ -145,11 +145,12 @@
       #                   ,id="iframe"
       #                   , height = "500px"))
       return(tags$iframe(src = tgt
+                         , align = "top"
                          , width = "1024px"
                          , frameborder="0"
                          , id="iframe"
                          , height = "700px"
-                         , style="-webkit-transform:scale(0.8);-moz-transform-scale(0.8);"))
+                         , style="-webkit-transform:scale(0.55);-moz-transform-scale(0.55);"))
     }
     
     
